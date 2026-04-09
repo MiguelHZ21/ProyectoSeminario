@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial IoT Dashboard | Semillero Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- MQTT.js & ApexCharts -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header Industrial -->
+        <header>
+            <div class="logo-section">
+                <h1><i data-lucide="sprout" class="header-icon"></i> Semillero <span>Industrial IoT</span></h1>
+            </div>
+            <div class="status-panel">
+                <div class="status-item">
+                    <span id="status-dot" class="dot"></span>
+                    <span id="status-text">Conectando al Broker...</span>
+                </div>
+                <div class="status-item">
+                    <i data-lucide="clock" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"></i>
+                    <span>Último sync: </span>
+                    <span id="last-update" style="color: var(--primary)">--:--:--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero Section: 4 Plant Cards -->
+        <section class="hero-grid">
+            <div class="sensor-card" id="card-sensor1">
+                <div class="sensor-card-header">
+                    <i data-lucide="droplets" class="sensor-icon soil"></i>
+                    <span class="sensor-label">Cimarrón</span>
+                </div>
+                <div class="sensor-value"><span id="val-sensor1">0</span><span class="sensor-unit">%</span></div>
+                <div class="avg-label"><i data-lucide="trending-up" style="width:12px;height:12px;"></i> Avg (1h): <span
+                        id="avg-sensor1">--</span>%</div>
+            </div>
+            <div class="sensor-card" id="card-sensor2">
+                <div class="sensor-card-header">
+                    <i data-lucide="droplets" class="sensor-icon soil"></i>
+                    <span class="sensor-label">Cilantro</span>
+                </div>
+                <div class="sensor-value"><span id="val-sensor2">0</span><span class="sensor-unit">%</span></div>
+                <div class="avg-label"><i data-lucide="trending-up" style="width:12px;height:12px;"></i> Avg (1h): <span
+                        id="avg-sensor2">--</span>%</div>
+            </div>
+            <div class="sensor-card" id="card-sensor3">
+                <div class="sensor-card-header">
+                    <i data-lucide="droplets" class="sensor-icon soil"></i>
+                    <span class="sensor-label">Valeriana</span>
+                </div>
+                <div class="sensor-value"><span id="val-sensor3">0</span><span class="sensor-unit">%</span></div>
+                <div class="avg-label"><i data-lucide="trending-up" style="width:12px;height:12px;"></i> Avg (1h): <span
+                        id="avg-sensor3">--</span>%</div>
+            </div>
+            <div class="sensor-card" id="card-sensor4">
+                <div class="sensor-card-header">
+                    <i data-lucide="droplets" class="sensor-icon soil"></i>
+                    <span class="sensor-label">Manzanilla</span>
+                </div>
+                <div class="sensor-value"><span id="val-sensor4">0</span><span class="sensor-unit">%</span></div>
+                <div class="avg-label"><i data-lucide="trending-up" style="width:12px;height:12px;"></i> Avg (1h): <span
+                        id="avg-sensor4">--</span>%</div>
+            </div>
+
+        </section>
+
+        <!-- Sección Principal -->
+        <div class="main-layout">
+            <!-- Monitoreo Ambiental (Solo tarjetas) -->
+            <section class="section-card ambient-panel">
+                <h3 class="section-title"><i data-lucide="cloud-sun" class="section-icon"></i> Monitoreo Ambiental</h3>
+                <div class="ambient-details">
+                    <div class="ambient-card">
+                        <i data-lucide="thermometer-sun" class="ambient-icon temp-icon"></i>
+                        <div>
+                            <span class="ambient-main-val"><span id="amb-temp-val">0</span>°C</span>
+                            <span class="ambient-sub">Temperatura</span>
+                            <span class="ambient-avg">Avg 1h: <span id="amb-temp-avg">--</span>°C</span>
+                        </div>
+                    </div>
+                    <div class="ambient-card">
+                        <i data-lucide="droplet" class="ambient-icon hum-icon"></i>
+                        <div>
+                            <span class="ambient-main-val"><span id="amb-hum-val">0</span>%</span>
+                            <span class="ambient-sub">Humedad del Aire</span>
+                            <span class="ambient-avg">Avg 1h: <span id="amb-hum-avg">--</span>%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gráfico de Humedad -->
+            <section class="section-card chart-panel">
+                <h3 class="section-title"><i data-lucide="chart-line" class="section-icon"></i> Tendencias de Humedad del Suelo</h3>
+                <div id="chart-main"></div>
+            </section>
+
+            <!-- Control de Bombas -->
+            <section class="section-card pump-panel">
+                <h3 class="section-title"><i data-lucide="settings-2" class="section-icon"></i> Control de Actuadores
+                    (Bombas de Riego)</h3>
+                <div class="pumps-grid">
+                    <div class="pump-box">
+                        <div class="pump-info">
+                            <i data-lucide="waves" class="pump-icon"></i>
+                            <span>Bomba 1 <small>Cimarrón</small></span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pump-0" onchange="togglePump(0, this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="pump-box">
+                        <div class="pump-info">
+                            <i data-lucide="waves" class="pump-icon"></i>
+                            <span>Bomba 2 <small>Cilantro</small></span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pump-1" onchange="togglePump(1, this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="pump-box">
+                        <div class="pump-info">
+                            <i data-lucide="waves" class="pump-icon"></i>
+                            <span>Bomba 3 <small>Valeriana</small></span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pump-2" onchange="togglePump(2, this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="pump-box">
+                        <div class="pump-info">
+                            <i data-lucide="waves" class="pump-icon"></i>
+                            <span>Bomba 4 <small>Manzanilla</small></span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pump-3" onchange="togglePump(3, this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reporte Inteligente Gemini AI -->
+            <section class="section-card ai-report-panel">
+                <div class="ai-report-header">
+                    <h3 class="section-title"><i data-lucide="sparkles" class="ai-icon"></i> Reporte Inteligente Gemini AI</h3>
+                    <button id="btn-generate-ai" class="info-btn" onclick="generateAIReport()">
+                        <i data-lucide="zap" style="width:16px;height:16px;"></i> Generar Informe
+                    </button>
+                </div>
+                <div id="ai-response-container" class="ai-content">
+                    <p class="placeholder-text">Haz clic en "Generar Informe" para analizar el estado actual de tu plantación con inteligencia artificial.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="ai-report.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+
+</html>
