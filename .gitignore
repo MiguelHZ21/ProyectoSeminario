@@ -7,5 +7,6 @@ venv/
 ENV/
 .env
 
-# Credenciales y Config
-Frontend/config.js
+Frontend copy/
+*.gitignore
+Codigo.ino

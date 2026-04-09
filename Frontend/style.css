@@ -97,6 +97,26 @@ header {
     box-shadow: 0 0 12px var(--primary);
 }
 
+.logout-btn {
+    background: #fffafa;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.logout-btn:hover {
+    background: var(--danger);
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
 /* Hero Cards (6 Sensors) */
 .hero-grid {
     display: grid;

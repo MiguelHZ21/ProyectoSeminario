@@ -1,3 +1,8 @@
+// Verificación de Autenticación
+if (sessionStorage.getItem('loggedIn') !== 'true') {
+    window.location.href = '/';
+}
+
 let mqttConfig = {}; // Se llenará desde la API
 
 // Umbrales de Alerta
@@ -264,7 +269,34 @@ function togglePump(index, checkbox) {
     client.publish(mqttConfig.topicActuadores, pumpState.join(''));
 }
 
+// Lógica de inactividad de 5 minutos
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
+let inactivityTimer;
+
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+        logout("Sesión expirada por inactividad. Por favor, inicie sesión nuevamente.");
+    }, INACTIVITY_TIMEOUT_MS);
+}
+
+// Escuchar eventos para resetear el temporizador
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => 
+    window.addEventListener(evt, resetInactivityTimer)
+);
+
+// Función para cerrar sesión
+function logout(reason) {
+    sessionStorage.removeItem('loggedIn');
+    sessionStorage.removeItem('loginTime');
+    if (reason && typeof reason === 'string') {
+        alert(reason);
+    }
+    window.location.href = '/';
+}
+
 window.onload = () => {
+    resetInactivityTimer(); // Iniciar temporizador al cargar
     initCharts();
     fetchConfig();
 };

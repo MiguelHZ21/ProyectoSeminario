@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión | Semillero Pro</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-hover: #059669;
+            --bg: #f1f5f9;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.1) 0%, transparent 50%);
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            color: var(--primary);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+        }
+
+        h1 span {
+            color: var(--primary);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 14px 14px 45px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+            background: white;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+
+        .btn-login:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-login:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            height: 20px;
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid white;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-card">
+        <div class="logo-container">
+            <i data-lucide="sprout" class="logo-icon"></i>
+            <h1>Semillero <span>Pro</span></h1>
+        </div>
+        <p class="subtitle">Panel de Monitoreo</p>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <i data-lucide="user"></i>
+                <input type="text" id="username" placeholder="Usuario" required autocomplete="username">
+            </div>
+
+            <div class="input-group">
+                <i data-lucide="lock"></i>
+                <input type="password" id="password" placeholder="Contraseña" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" id="loginBtn" class="btn-login" disabled>
+                <span>Ingresar</span>
+                <div class="loading-spinner" id="spinner"></div>
+            </button>
+
+            <div class="error-message" id="errorMessage"></div>
+        </form>
+    </div>
+
+    <script>
+        // Inicializar iconos
+        lucide.createIcons();
+
+        let remoteUser = "";
+        let remotePass = "";
+
+        // Fetch credentials once the page loads
+        async function fetchCredentials() {
+            const btn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMessage');
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                remoteUser = config.MQTT_USER;
+                remotePass = config.MQTT_PASS;
+                // Habilitar botón cuando estén listas las credenciales
+                btn.disabled = false;
+            } catch (error) {
+                console.error("Error al obtener config:", error);
+                errorMsg.innerText = "Error conectando con el servidor. Revisar backend.";
+            }
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const btnText = document.querySelector('#loginBtn span');
+            const spinner = document.getElementById('spinner');
+            const errorMsg = document.getElementById('errorMessage');
+
+            const userVal = document.getElementById('username').value.trim();
+            const passVal = document.getElementById('password').value.trim();
+
+            errorMsg.innerText = "";
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+
+            setTimeout(() => {
+                if (userVal === remoteUser && passVal === remotePass) {
+                    // Start session
+                    sessionStorage.setItem('loggedIn', 'true');
+                    sessionStorage.setItem('loginTime', Date.now());
+
+                    // Redirect to dashboard
+                    window.location.href = '/Pagina.html';
+                } else {
+                    errorMsg.innerText = "Credenciales incorrectas.";
+                    btnText.style.display = 'block';
+                    spinner.style.display = 'none';
+                }
+            }, 800); // Artificial delay to simulate processing and show nice animation
+        }
+
+        // Si ya hay sesión activa, redirigir
+        if (sessionStorage.getItem('loggedIn') === 'true') {
+            window.location.href = '/Pagina.html';
+        } else {
+            window.onload = fetchCredentials;
+        }
+
+    </script>
+</body>
+
+</html>
