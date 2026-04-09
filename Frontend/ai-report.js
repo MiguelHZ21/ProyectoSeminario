@@ -18,7 +18,7 @@ async function generateAIReport() {
             <div class="dot-pulse"></div>
             <div class="dot-pulse"></div>
         </div>
-        <p style="text-align:center; color: #8b5cf6;">Gemini está analizando tus datos agrícolas...</p>
+        <p style="text-align:center; color: #8b5cf6;">Se están analizando tus datos agrícolas...</p>
     `;
 
     try {
