@@ -209,27 +209,13 @@
         // Inicializar iconos
         lucide.createIcons();
 
-        let remoteUser = "";
-        let remotePass = "";
-
-        // Fetch credentials once the page loads
-        async function fetchCredentials() {
+        // Ya no bajamos las contraseñas, solo habilitamos el botón
+        function fetchCredentials() {
             const btn = document.getElementById('loginBtn');
-            const errorMsg = document.getElementById('errorMessage');
-            try {
-                const response = await fetch('/api/config');
-                const config = await response.json();
-                remoteUser = config.MQTT_USER;
-                remotePass = config.MQTT_PASS;
-                // Habilitar botón cuando estén listas las credenciales
-                btn.disabled = false;
-            } catch (error) {
-                console.error("Error al obtener config:", error);
-                errorMsg.innerText = "Error conectando con el servidor. Revisar backend.";
-            }
+            btn.disabled = false;
         }
 
-        function handleLogin(event) {
+        async function handleLogin(event) {
             event.preventDefault();
 
             const btnText = document.querySelector('#loginBtn span');
@@ -243,20 +229,30 @@
             btnText.style.display = 'none';
             spinner.style.display = 'block';
 
-            setTimeout(() => {
-                if (userVal === remoteUser && passVal === remotePass) {
-                    // Start session
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: userVal, password: passVal })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
                     sessionStorage.setItem('loggedIn', 'true');
                     sessionStorage.setItem('loginTime', Date.now());
-
-                    // Redirect to dashboard
                     window.location.href = '/Pagina.html';
                 } else {
                     errorMsg.innerText = "Credenciales incorrectas.";
                     btnText.style.display = 'block';
                     spinner.style.display = 'none';
                 }
-            }, 800); // Artificial delay to simulate processing and show nice animation
+            } catch (error) {
+                console.error("Error en login:", error);
+                errorMsg.innerText = "Error conectando con el servidor.";
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+            }
         }
 
         // Si ya hay sesión activa, redirigir

@@ -3,7 +3,7 @@ if (sessionStorage.getItem('loggedIn') !== 'true') {
     window.location.href = '/';
 }
 
-let mqttConfig = {}; // Se llenará desde la API
+let socket;
 
 // Umbrales de Alerta
 const THRESHOLDS = {
@@ -11,7 +11,6 @@ const THRESHOLDS = {
     TEMP_MAX: 35  // Alerta si temp > 35°C
 };
 
-let client;
 let pumpState = ['0', '0', '0', '0'];
 let lastMessageTime = 0;
 const TIMEOUT_MS = 10000;
@@ -79,93 +78,28 @@ function initCharts() {
     mainChart.render();
 }
 
-async function fetchConfig() {
-    try {
-        const response = await fetch('/api/config');
-        const config = await response.json();
-        
-        // Verificación en consola (puedes ver esto con F12)
-        console.log("Datos recibidos del backend:", config);
+function setupSocket() {
+    socket = io();
+    updateStatus(false, "Conectando al servidor...");
 
-        mqttConfig = {
-            host: config.MQTT_BROKER,
-            port: config.MQTT_PORT,
-            user: config.MQTT_USER,
-            pass: config.MQTT_PASS,
-            topicSensors: config.MQTT_TOPIC_SENSORS,
-            topicActuadores: config.MQTT_TOPIC_ACTUADORES
-        };
+    socket.on('connect', () => {
+        console.log("¡Conexión establecida con el Backend!");
+        updateStatus(true, "Conectado al Servidor");
+    });
 
-        if (!mqttConfig.host) {
-            throw new Error("El Host del Broker está vacío en el .env");
-        }
+    socket.on('disconnect', () => {
+        updateStatus(false, "Servidor Desconectado");
+    });
 
-        console.log("Iniciando conexión a:", mqttConfig.host);
-        connectMQTT();
-    } catch (e) {
-        console.error("Error cargando configuración:", e);
-        updateStatus(false, "Configuración Inválida");
-    }
-}
-
-function connectMQTT() {
-    if (!mqttConfig.host) return;
-    
-    updateStatus(false, "Conectando...");
-    
-    const clientId = 'IndustrialClient_' + Math.random().toString(16).substr(2, 8);
-    
-    // Configuración específica para HiveMQ Cloud
-    const options = {
-        keepalive: 60,
-        clientId: clientId,
-        protocolId: 'MQTT',
-        protocolVersion: 4,
-        clean: true,
-        reconnectPeriod: 2000,
-        connectTimeout: 30 * 1000,
-        username: mqttConfig.user,
-        password: mqttConfig.pass
-    };
-
-    console.log(`Intentando conectar a wss://${mqttConfig.host}:${mqttConfig.port}/mqtt`);
-    
-    // Formato directo: protocolo + host + puerto + ruta
-    client = mqtt.connect(`wss://${mqttConfig.host}:${mqttConfig.port}/mqtt`, options);
-
-    client.on('connect', () => {
-        console.log("¡Conexión establecida con HiveMQ Cloud!");
-        updateStatus(true, "Conectado");
-        client.subscribe(mqttConfig.topicSensors, (err) => {
-            if (!err) console.log("Suscrito a:", mqttConfig.topicSensors);
-        });
+    socket.on('sensor_data', (data) => {
         lastMessageTime = Date.now();
-    });
-
-    client.on('error', (err) => {
-        console.error("Fallo de conexión MQTT:", err);
-        updateStatus(false, "Error de Conexión");
-    });
-
-    client.on('offline', () => {
-        updateStatus(false, "Broker Desconectado");
-    });
-
-    client.on('message', (topic, message) => {
-        if (topic === mqttConfig.topicSensors) {
-            lastMessageTime = Date.now();
-            updateStatus(true);
-            try {
-                const data = JSON.parse(message.toString());
-                processData(data);
-            } catch (e) { console.error('Error procesando JSON:', e); }
-        }
+        updateStatus(true);
+        processData(data);
     });
 
     setInterval(checkInactivity, 1000);
     setInterval(updateCharts, CHART_UPDATE_INTERVAL);
 }
-
 // processData: actualiza SOLO tarjetas (último valor) + buffers de promedios
 function processData(data) {
     document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
@@ -266,7 +200,7 @@ function updateStatus(online, msg) {
 
 function togglePump(index, checkbox) {
     pumpState[index] = checkbox.checked ? '1' : '0';
-    client.publish(mqttConfig.topicActuadores, pumpState.join(''));
+    if (socket) socket.emit('toggle_pump', pumpState.join(''));
 }
 
 // Lógica de inactividad de 5 minutos
@@ -298,5 +232,5 @@ function logout(reason) {
 window.onload = () => {
     resetInactivityTimer(); // Iniciar temporizador al cargar
     initCharts();
-    fetchConfig();
+    setupSocket();
 };
