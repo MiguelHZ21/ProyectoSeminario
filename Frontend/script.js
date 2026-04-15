@@ -106,7 +106,7 @@ function processData(data) {
 
     // Sensores de Plantas (1-4): Tarjetas con ÚLTIMO valor
     [1, 2, 3, 4].forEach((i) => {
-        const val = Math.round((data[`sensor${i}`] / 4095) * 100);
+        const val = Math.round((data[`sensor${i}`]));
         document.getElementById(`val-sensor${i}`).innerText = val;
 
         const card = document.getElementById(`card-sensor${i}`);
@@ -122,8 +122,8 @@ function processData(data) {
     });
 
     // Ambiente (5-6): Solo tarjetas de detalle ambiental
-    const temp = Math.round((data.sensor5 / 1) * 50);
-    const hum = Math.round((data.sensor6 / 4095) * 100);
+    const temp = Math.round((data.sensor5));
+    const hum = Math.round((data.sensor6));
 
     // Actualizar tarjetas de detalle ambiental
     document.getElementById('amb-temp-val').innerText = temp;
@@ -215,7 +215,7 @@ function resetInactivityTimer() {
 }
 
 // Escuchar eventos para resetear el temporizador
-['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => 
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
     window.addEventListener(evt, resetInactivityTimer)
 );
 
