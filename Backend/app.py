@@ -4,7 +4,7 @@ gevent.monkey.patch_all()
 import os
 import requests
 import json
-import threading
+import time
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -22,11 +22,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Variables de entorno con logs de depuración (con limpieza de espacios)
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
 
-# Log de depuración para verificar carga
-print("--- Verificación de Variables de Entorno ---")
-print(f"MQTT_USER: {'OK' if os.getenv('MQTT_USER') else 'FALLA'}")
-print(f"GEMINI_API_KEY: {'OK' if GEMINI_API_KEY else 'FALLA'}")
-print("-------------------------------------------")
+
 
 MQTT_CONFIG = {
     "MQTT_USER": os.getenv('MQTT_USER', '').strip(),
@@ -38,50 +34,80 @@ MQTT_CONFIG = {
 }
 
 # --- MQTT SETUP ---
-# Volvemos a WebSockets (puerto 8884) con la ruta especifica requerida por HiveMQ Cloud
-try:
-    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id="FlaskBackend_" + os.urandom(4).hex(), transport="websockets")
-except AttributeError:
-    mqtt_client = mqtt.Client(client_id="FlaskBackend_" + os.urandom(4).hex(), transport="websockets")
+mqtt_client = None
+_mqtt_started = False
 
-mqtt_client.ws_set_options(path="/mqtt")
-
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("Conectado exitosamente a MQTT desde Backend")
-        client.subscribe(MQTT_CONFIG['MQTT_TOPIC_SENSORS'])
-    else:
-        print("Falla de conexión MQTT con código:", rc)
-
-def on_message(client, userdata, msg):
+def _create_mqtt_client():
+    """Crea y configura el cliente MQTT."""
+    global mqtt_client
     try:
-        data = json.loads(msg.payload.decode('utf-8'))
-        # Retransmitir al frontend vía websocket
-        socketio.emit('sensor_data', data)
-    except Exception as e:
-        print("Error parseando msj MQTT:", e)
+        mqtt_client = mqtt.Client(
+            mqtt.CallbackAPIVersion.VERSION1,
+            client_id="FlaskBackend_" + os.urandom(4).hex(),
+            transport="websockets"
+        )
+    except AttributeError:
+        mqtt_client = mqtt.Client(
+            client_id="FlaskBackend_" + os.urandom(4).hex(),
+            transport="websockets"
+        )
 
-mqtt_client.on_connect = on_connect
-mqtt_client.on_message = on_message
+    mqtt_client.ws_set_options(path="/mqtt")
 
-if MQTT_CONFIG['MQTT_USER'] and MQTT_CONFIG['MQTT_PASS']:
-    mqtt_client.username_pw_set(MQTT_CONFIG['MQTT_USER'], MQTT_CONFIG['MQTT_PASS'])
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("Conectado exitosamente a MQTT desde Backend", flush=True)
+            client.subscribe(MQTT_CONFIG['MQTT_TOPIC_SENSORS'])
+           
+        else:
+            print(f"Falla de conexión MQTT con código: {rc}", flush=True)
 
-mqtt_client.tls_set() # Activar TLS (requerido para wss en hives)
+    def on_disconnect(client, userdata, rc):
+        print(f"MQTT desconectado (código: {rc}). Reconectando...", flush=True)
 
-def mqtt_thread():
+    def on_message(client, userdata, msg):
+        try:
+            data = json.loads(msg.payload.decode('utf-8'))
+
+            # Retransmitir al frontend vía websocket
+            socketio.emit('sensor_data', data)
+        except Exception as e:
+            print(f"Error parseando msj MQTT: {e}", flush=True)
+
+    mqtt_client.on_connect = on_connect
+    mqtt_client.on_disconnect = on_disconnect
+    mqtt_client.on_message = on_message
+
+    if MQTT_CONFIG['MQTT_USER'] and MQTT_CONFIG['MQTT_PASS']:
+        mqtt_client.username_pw_set(MQTT_CONFIG['MQTT_USER'], MQTT_CONFIG['MQTT_PASS'])
+
+    mqtt_client.tls_set()  # Activar TLS (requerido para wss en HiveMQ Cloud)
+    return mqtt_client
+
+def _mqtt_loop():
+    """Hilo/tarea de fondo que mantiene la conexión MQTT con reconexión automática."""
     if not MQTT_CONFIG['MQTT_BROKER']:
-        print("No MQTT Broker configured.")
+        print("No MQTT Broker configured.", flush=True)
         return
-    try:
-        print(f"Conectando a MQTT: {MQTT_CONFIG['MQTT_BROKER']}:{MQTT_CONFIG['MQTT_PORT']}")
-        mqtt_client.connect(MQTT_CONFIG['MQTT_BROKER'], MQTT_CONFIG['MQTT_PORT'], 60)
-        mqtt_client.loop_forever()
-    except Exception as e:
-        print("Error conectando a MQTT:", e)
 
-# Iniciar el hilo de conexión en background
-threading.Thread(target=mqtt_thread, daemon=True).start()
+    while True:
+        try:
+            _create_mqtt_client()
+           
+            mqtt_client.connect(MQTT_CONFIG['MQTT_BROKER'], MQTT_CONFIG['MQTT_PORT'], 60)
+            mqtt_client.loop_forever()
+        except Exception as e:
+            print(f"Error en conexión MQTT: {e}. Reintentando en 5s...", flush=True)
+            time.sleep(5)
+
+def start_mqtt():
+    """Inicia la conexión MQTT de forma segura (solo una vez, en el proceso worker)."""
+    global _mqtt_started
+    if _mqtt_started:
+        return
+    _mqtt_started = True
+    print(" Iniciando tarea de fondo MQTT en el worker...", flush=True)
+    socketio.start_background_task(_mqtt_loop)
 
 # --- RUTAS DE FLASK ---
 
@@ -148,13 +174,17 @@ def generate_report():
 @socketio.on('toggle_pump')
 def handle_toggle_pump(state):
     # El usuario apretó un botón en el frontend
-    mqtt_client.publish(MQTT_CONFIG['MQTT_TOPIC_ACTUADORES'], state)
+    if mqtt_client:
+        mqtt_client.publish(MQTT_CONFIG['MQTT_TOPIC_ACTUADORES'], state)
 
 @socketio.on('connect')
 def handle_connect():
-    print("Cliente frontend conectado vía Socket.IO")
+    print("Cliente frontend conectado vía Socket.IO", flush=True)
+    # Asegurar que MQTT esté corriendo cuando un cliente se conecta
+    start_mqtt()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    # Usar socketio.run
+    # Iniciar MQTT antes del servidor en modo local
+    start_mqtt()
     socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
