@@ -32,21 +32,18 @@ MQTT_CONFIG = {
     "MQTT_USER": os.getenv('MQTT_USER', '').strip(),
     "MQTT_PASS": os.getenv('MQTT_PASS', '').strip(),
     "MQTT_BROKER": os.getenv('MQTT_BROKER', '').strip(),
-    "MQTT_PORT": int(os.getenv('MQTT_PORT', '8884').strip()),
+    "MQTT_PORT": int(os.getenv('MQTT_PORT', '8884')),
     "MQTT_TOPIC_SENSORS": os.getenv('MQTT_TOPIC_SENSORS', '').strip(),
     "MQTT_TOPIC_ACTUADORES": os.getenv('MQTT_TOPIC_ACTUADORES', '').strip()
 }
 
 # --- MQTT SETUP ---
-# Se utiliza transport="websockets" para soportar el puerto wss de HiveMQ
+# Volvemos a WebSockets (puerto 8884) con la ruta especifica requerida por HiveMQ Cloud
 try:
-    # Intenta usar la nueva API si paho-mqtt es version 2.x
     mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id="FlaskBackend_" + os.urandom(4).hex(), transport="websockets")
 except AttributeError:
-    # Fallback para versiones antiguas de paho-mqtt
     mqtt_client = mqtt.Client(client_id="FlaskBackend_" + os.urandom(4).hex(), transport="websockets")
 
-# IMPORTANTE: HiveMQ Cloud requiere que el path de WebSockets sea "/mqtt"
 mqtt_client.ws_set_options(path="/mqtt")
 
 def on_connect(client, userdata, flags, rc):
